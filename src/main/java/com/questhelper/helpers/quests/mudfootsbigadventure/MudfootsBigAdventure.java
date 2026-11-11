@@ -50,7 +50,7 @@ public class MudfootsBigAdventure extends BasicQuestHelper
 
 	// Steps
 	NpcStep talkToHarlan, talkToMudfoot, confrontRangerOutlaw, fightRangerOutlaw, speakAfterRangerOutlaw, fightMageOutlaw, speakAfterMageOutlaw,
-		    fightMeleeOutlaw, speakAfterMeleeOutlaw, finishQuest;
+		fightMeleeOutlaw, speakAfterMeleeOutlaw, finishQuest;
 
 	@Override
 	protected void setupZones()
@@ -61,7 +61,7 @@ public class MudfootsBigAdventure extends BasicQuestHelper
 	@Override
 	protected void setupRequirements()
 	{
-		stabWeapon = new ItemRequirement("A stab weapon", -1, 1 ).isNotConsumed();
+		stabWeapon = new ItemRequirement("A stab weapon", -1, 1).isNotConsumed();
 		stabWeapon.canBeObtainedDuringQuest();
 		stabWeapon.setTooltip("A bronze sword can be obtained from Captain Harlan during the quest");
 		stabWeapon.setDisplayItemId(ItemID.BRONZE_SWORD);
