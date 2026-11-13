@@ -24,20 +24,19 @@
  */
 package com.questhelper.helpers.quests.thebirdsandthewasps;
 
-import com.questhelper.collections.ItemCollections;
 import com.questhelper.panel.PanelDetails;
 import com.questhelper.questhelpers.BasicQuestHelper;
-import com.questhelper.questinfo.QuestHelperQuest;
+import com.questhelper.requirements.ChatMessageRequirement;
 import com.questhelper.requirements.Requirement;
 import com.questhelper.requirements.item.ItemRequirement;
-import com.questhelper.requirements.player.SkillRequirement;
-import com.questhelper.requirements.quest.QuestRequirement;
+import static com.questhelper.requirements.util.LogicHelper.and;
 import com.questhelper.requirements.var.VarbitRequirement;
-import com.questhelper.requirements.zone.Zone;
 import com.questhelper.rewards.ExperienceReward;
 import com.questhelper.rewards.ItemReward;
 import com.questhelper.rewards.QuestPointReward;
 import com.questhelper.rewards.UnlockReward;
+import com.questhelper.steps.ConditionalStep;
+import com.questhelper.steps.DetailedQuestStep;
 import com.questhelper.steps.NpcStep;
 import com.questhelper.steps.ObjectStep;
 import com.questhelper.steps.QuestStep;
@@ -45,33 +44,29 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import net.runelite.api.QuestState;
-import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.gameval.ItemID;
-import net.runelite.api.gameval.NpcID;
-import net.runelite.api.gameval.ObjectID;
-import net.runelite.api.gameval.VarbitID;
 
 public class TheBirdsAndTheWasps extends BasicQuestHelper
 {
 	// Required items
-	ItemRequirement sampleRequirement;
-
+	ItemRequirement beeBox, beeHunterHat, insectRepellent, insectNet;
+	ItemRequirement beeHunterHatEquipped, insectNetEquipped;
 	// Recommended items
-	ItemRequirement energyRestorePotion;
 
 	// Mid-quest item requirements
-	ItemRequirement itemAcquiredDuringQuest;
 
 	// Zones
-	Zone sampleZone;
 
 	// Miscellaneous requirements
-	VarbitRequirement hasFinishedCertainTask;
+	VarbitRequirement spokenToBeaAfterCutscene;
+
+	// Fields
+	ChatMessageRequirement beesAngry;
 
 	// Steps
-	NpcStep talkToFarmerBea;
+	NpcStep speakToFarmerBea, speakToBeeDealer, returnBees, speakToBeaAfterCutscene;
+	ObjectStep takeEquipmentFromBox;
+	DetailedQuestStep calmBees, equipGear, catchWasps;
 
 	@Override
 	protected void setupZones()
@@ -81,13 +76,43 @@ public class TheBirdsAndTheWasps extends BasicQuestHelper
 	@Override
 	protected void setupRequirements()
 	{
-		talkToFarmerBea = new NpcStep(this, 3217,new WorldPoint(3313, 3376, 0), "Talk to Farmer Bea to start the quest.");
+		beeBox = new ItemRequirement("Bee box", 34775);
+
+		beeHunterHat = new ItemRequirement("Bee hunter's hat", 34777);
+		insectNet = new ItemRequirement("Insect net", 10010);
+		beeHunterHatEquipped = beeHunterHat.equipped();
+		insectNetEquipped = insectNet.equipped();
+
+		spokenToBeaAfterCutscene = new VarbitRequirement(16849, 1);
+
+		beesAngry = new ChatMessageRequirement("You can sense the insects in the box getting agitated. Best give them a shake.");
+		beesAngry.setInvalidateRequirement(
+			new ChatMessageRequirement(
+				"The agitated insects lash out and sting you through the holes in the box.",
+				"You give the box a firm shake and the insects seem to calm down."
+			)
+		);
 	}
 
 	void setupSteps()
 	{
+		speakToFarmerBea = new NpcStep(this, 3217,new WorldPoint(3313, 3376, 0), "Speak to Farmer Bea to start the quest.");
+		speakToFarmerBea.addDialogStep("Yes.");
 
+		speakToBeeDealer = new NpcStep(this, 3220, new WorldPoint(3188, 3494, 0), "Speak to the Bee Dealer in the Grand Exchange");
 
+		returnBees = new NpcStep(this, 3217, new WorldPoint(3313, 3376, 0), "Return the bees to Farmer Bea, clicking on the bee box when the bees get agitated.");
+
+		calmBees = new DetailedQuestStep(this, "Click the bee box to calm the bees.", beeBox.highlighted());
+
+		speakToBeaAfterCutscene = new NpcStep(this, 3217, new WorldPoint(3313, 3376, 0), "Speak to Farmer Bea after watching the cutscene.");
+
+		takeEquipmentFromBox = new ObjectStep(this, 26249, new WorldPoint(3315, 3376, 0), "Take the equipment from the equipment box.");
+		takeEquipmentFromBox.addDialogStep("Take everything.");
+
+		equipGear = new DetailedQuestStep(this, "Equip the Bee hunter's hat and Insect net.", beeHunterHat.highlighted(), insectNet.highlighted());
+
+		catchWasps = new NpcStep(this, 3226, new WorldPoint(3316, 3363, 0), "Catch wasps with your insect net.", true, beeHunterHatEquipped, insectNetEquipped);
 	}
 
 	@Override
@@ -98,7 +123,20 @@ public class TheBirdsAndTheWasps extends BasicQuestHelper
 
 		var steps = new HashMap<Integer, QuestStep>();
 
-		steps.put(0, talkToFarmerBea);
+		steps.put(0, speakToFarmerBea);
+		steps.put(5, speakToFarmerBea);
+		steps.put(10,speakToBeeDealer);
+
+		var cCalmBees = new ConditionalStep(this, returnBees);
+		cCalmBees.addStep(beesAngry, calmBees);
+		steps.put(15, cCalmBees);
+		steps.put(20, returnBees);
+
+		var cAfterCutscene = new ConditionalStep(this, speakToBeaAfterCutscene);
+		cAfterCutscene.addStep(and(spokenToBeaAfterCutscene, beeHunterHatEquipped, insectNetEquipped), catchWasps);
+		cAfterCutscene.addStep(and(spokenToBeaAfterCutscene, beeHunterHat, insectNet), equipGear);
+		cAfterCutscene.addStep(spokenToBeaAfterCutscene, takeEquipmentFromBox);
+		steps.put(25, cAfterCutscene);
 
 		return steps;
 	}
@@ -178,7 +216,22 @@ public class TheBirdsAndTheWasps extends BasicQuestHelper
 		var sections = new ArrayList<PanelDetails>();
 
 		sections.add(new PanelDetails("Starting off", List.of(
-			talkToFarmerBea
+			speakToFarmerBea
+		), List.of(
+		)));
+
+		sections.add(new PanelDetails("Getting the bees", List.of(
+			speakToBeeDealer,
+			returnBees,
+			calmBees,
+			speakToBeaAfterCutscene
+		), List.of(
+		)));
+
+		sections.add(new PanelDetails("Catching wasps", List.of(
+			takeEquipmentFromBox,
+			equipGear,
+			catchWasps
 		), List.of(
 		)));
 
